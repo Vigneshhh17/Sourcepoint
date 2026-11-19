@@ -12,13 +12,23 @@ You can investigate questions across the HotpotQA Wikipedia dataset or search an
 
 ## How it works
 
-1. **Load documents** — Sourcepoint reads supported files, extracts text and useful metadata, then splits long documents into smaller passages.
-2. **Build the search index** — It creates semantic vectors for meaning-based search and a BM25 index for keyword search. The indexes are stored in Qdrant.
-3. **Find evidence** — A question searches the selected collection. The results are combined and reranked to bring useful passages forward.
-4. **Write and check an answer** — The AI investigator uses the passages to answer. A verification step checks claims and citations against the retrieved evidence.
-5. **Show the result** — The interface displays the answer, citations, source passages, and investigation trace.
+1. **Prepare documents** — Sourcepoint extracts text and metadata from supported files and splits long documents into passages.
+2. **Index the passages** — It stores semantic vectors and a BM25 keyword index in Qdrant.
+3. **Retrieve evidence with RAG** — Retrieval-Augmented Generation (RAG) searches by meaning and keywords, combines the results, and reranks them. The best passages are sent to the language model as context for its answer.
+4. **Investigate with the AI agent** — In agent mode, the model can search again, follow references, and read more documents before it submits an answer. Single-shot mode answers from one retrieval pass.
+5. **Verify and present** — Sourcepoint checks claims and citations against retrieved passages. It shows the answer, sources, and investigation steps, or reports when evidence is insufficient.
 
-The backend uses Python and FastAPI. The browser interface is served by the same app. Local Qdrant works without a separate database service. Optional LLM providers include Groq and Gemini.
+## API and architecture
+
+The application uses a Python **FastAPI** backend and a browser interface served by the same app. The API connects document ingestion, Qdrant search, the AI agent, and answer verification.
+
+- `POST /api/ask` runs an investigation and returns the answer, citations, and sources.
+- `POST /api/ask/stream` streams agent steps and the final answer as they are produced.
+- `GET /api/search` returns ranked passages for a query.
+- `/api/documents` supports listing, uploading, replacing, and deleting documents.
+- `GET /api/health` reports backend and model-provider status.
+
+Qdrant can run locally or as a hosted database. Groq and Gemini are supported as language-model providers; add their keys to `.env`.
 
 ## Run on Windows
 
