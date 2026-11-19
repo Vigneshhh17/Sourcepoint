@@ -1,130 +1,43 @@
-# AI Investigation Engine
+# Sourcepoint
 
-An evidence-based investigation system over large document collections. It answers questions that
-need **several documents at once**: it searches, follows links between documents (incident → change →
-approval), compares sources, reports **contradictions**, cites every claim, and **refuses to answer**
-when the evidence is not there.
-
-> Example (from the task brief): *"Which system changes caused the payment processing delays in
-> March, which services were affected, and which documents confirm this?"* - the agent finds the two
-> March incidents, links them to CHG-1042 + CHG-1051 and CHG-1047 through the change log and
-> postmortems, lists the affected services, cites each fact, and flags that the initial incident
-> report blamed the payment provider while the final postmortem proves otherwise.
-
-**Live demo:** https://ai-investigation-engine-e8aq.onrender.com (free tier: the first request after 15 idle minutes takes ~1 minute) · **Evaluation report:** [docs/EVALUATION.md](docs/EVALUATION.md) ·
-**Architecture & decisions:** [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) ·
-**Deployment:** [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) · **AI usage:** [docs/AI_USAGE.md](docs/AI_USAGE.md)
+Sourcepoint is a document research app. Ask a question, search your documents, and review the sources behind an answer.
 
 ## What it does
 
-| Requirement | How it is met |
-|---|---|
-| ≥ 3 file formats | PDF, DOCX, Markdown, HTML, TXT, CSV, JSON, JSONL, XML (`app/ingestion/loaders.py`) |
-| Text + metadata extraction | per-format metadata (PDF info, DOCX properties, HTML meta, front matter) + rule-based entities, dates, doc type |
-| Chunking, 2 strategies compared | fixed sliding window vs structure-aware chunker (`chunking.py`), compared in the evaluation |
-| Duplicates | exact (SHA-256) and near-duplicates (MinHash + LSH, implemented from scratch) |
-| Add / update / delete | versioned, idempotent ingestion; API + UI |
-| Vector DB, semantic + hybrid search | Qdrant: dense (bge-small) + sparse BM25 vectors |
-| Own search/ranking algorithms | BM25 encoder, weighted Reciprocal Rank Fusion, MMR diversification, MinHash/LSH, rule-based contradiction detector, claim grounding check |
-| RAG, multi-document, multi-step | tool-calling agent: `search_documents`, `find_mentions`, `read_document`, `list_documents`, `submit_answer` |
-| Citations | every claim cites evidence ids; citations are verified against the sources (numbers/IDs must appear in the cited text); uncited answers are attributed automatically or rejected |
-| Contradictions | model + deterministic detector + source-reliability ranking (final postmortem > draft/initial report > chat) |
-| Abstention | prompt rules + verifier gate (unsupported claims, low retrieval confidence) |
-| LLM errors and limits | retries with backoff, Retry-After, provider fallback, circuit breaker, cache, degraded mode |
-| ≥ 50,000 documents | HotpotQA distractor set: 73,700 paragraphs → 66,581 unique titles → **66,552 documents / 67,680 chunks** indexed after content dedup (+ 54 incident documents) |
-| Evaluation | 50 investigation questions + 300 HotpotQA questions; Recall@k, All@k, MRR, correctness, citation precision/recall, abstention, contradiction detection, injection resistance; 5 retrieval configs, 2 chunkers, agent vs single-shot, 2 LLMs |
-| Python backend + UI | FastAPI + single-page UI with live streamed investigation trace |
-| Free deployment | Render free web service (Docker) + Qdrant Cloud free tier + free LLM tiers |
-| Bonus | agentic RAG, cross-encoder re-ranking, prompt-injection tests, caching, streaming, metrics endpoint, 2 LLMs **and 3 embedding models** compared, **load test** on the 66k index (19 req/s, 0 errors) |
+- Searches the HotpotQA Wikipedia dataset and documents you upload.
+- Gives answers with citations and shows the supporting passages.
+- Lets you upload, browse, replace, and remove your own documents.
+- Supports multi-step investigations and direct search.
 
-## Quick start (local, no accounts needed for search)
+## Run on Windows
 
-```bash
-uv venv --python 3.11 .venv && uv pip install --python .venv/bin/python -e ".[dev]"
-cp .env.example .env            # add at least one free LLM key (Groq, Cerebras, Mistral or Gemini)
+You need Python 3.11 and `uv` installed.
 
-.venv/bin/python -m scripts.generate_incident_corpus      # synthetic Acme Play corpus (55 files, 7 formats)
-.venv/bin/python -m scripts.index_corpus --corpus incidents
-.venv/bin/python -m scripts.prepare_hotpotqa              # downloads HotpotQA (27 MB) + builds the eval sample
-.venv/bin/python -m scripts.index_corpus --corpus hotpotqa   # embeds ~66k paragraphs on CPU
-
-.venv/bin/python -m uvicorn app.api.main:app --port 8000  # open http://localhost:8000
-.venv/bin/python -m pytest                                 # tests: no network, no real models
+```powershell
+uv venv --python 3.11 .venv
+uv pip install --python .venv\Scripts\python.exe -e ".[dev]"
+Copy-Item .env.example .env
 ```
 
-Without `QDRANT_URL` the embedded local Qdrant (`data/qdrant_local`) is used; with it, the same code
-talks to Qdrant Cloud.
+Open `.env` and add at least one provider key, such as `GROQ_API_KEY` or `GEMINI_API_KEY`. Keep `.env` private; it should not be committed.
 
-## Repository layout
+Prepare and index the HotpotQA documents:
 
-```
-app/
-  ingestion/   loaders.py · metadata.py · chunking.py · dedup.py · pipeline.py
-  index/       embeddings.py · bm25.py · store.py (all Qdrant access)
-  retrieval/   retriever.py · fusion.py (RRF) · mmr.py · rerank.py
-  llm/         client.py (providers, retries, fallback, cache)
-  agent/       investigator.py · prompts.py · evidence.py · verify.py · contradictions.py · security.py
-  api/         main.py (REST + SSE)        web/index.html (UI)
-  config.py · services.py · observability.py
-scripts/       generate_incident_corpus.py · prepare_hotpotqa.py · index_corpus.py
-render.yaml    Render blueprint (free web service)
-eval/          investigation_questions.py · metrics.py · run_eval.py · judge.py · rejudge.py · rescore.py · report.py · results/
-tests/         unit + integration tests (in-memory Qdrant, fake embedder, scripted LLM)
-docs/          ARCHITECTURE.md · EVALUATION.md · DEPLOYMENT.md · AI_USAGE.md
+```powershell
+.\.venv\Scripts\python.exe -m scripts.prepare_hotpotqa
+.\.venv\Scripts\python.exe -m scripts.index_corpus --corpus hotpotqa --subset 100
 ```
 
-## API
+The subset includes the supporting paragraphs for the sample evaluation questions plus 100 distractor documents. To index the full dataset instead, omit `--subset 100`; the full index is much larger and takes longer.
 
-| Method | Path | Purpose |
-|---|---|---|
-| GET | `/api/health` | status of vector DB and configured LLMs |
-| GET | `/api/stats` | documents and chunks per corpus |
-| GET | `/api/metrics` | request counts, p50/p95 latency per route, LLM calls and tokens |
-| GET | `/api/documents?corpus=` | list documents (paginated) |
-| GET | `/api/documents/{doc_id}` | document metadata and chunks |
-| POST | `/api/documents` | upload files (multipart `files`, `corpus`) |
-| PUT | `/api/documents/{doc_id}` | replace content → new version |
-| DELETE | `/api/documents/{doc_id}` | delete document and chunks |
-| GET | `/api/search?q=&mode=&rerank=&mmr=&doc_type=&date_from=&date_to=` | raw hybrid search with every stage's scores; optional document-type and date-range filters |
-| POST | `/api/ask` | `{question, corpus, mode}` → answer, claims, contradictions, sources, trace |
-| POST | `/api/ask/stream` | same as Server-Sent Events (live agent steps) |
+Start Sourcepoint:
 
-The built-in corpora (`incidents`, `hotpotqa`) are read-only on the public demo; uploads go to
-`uploads` (an `ADMIN_TOKEN` header unlocks the others).
+```powershell
+.\.venv\Scripts\python.exe -m uvicorn app.api.main:app --port 8000
+```
 
-## Evaluation summary
+Open <http://127.0.0.1:8000>.
 
-See [docs/EVALUATION.md](docs/EVALUATION.md) for methodology, all tables and the error analysis.
+## API keys
 
-**Retrieval** (Recall@10 / MRR; `All@10` = every needed document found):
-
-| | Investigation set (41 q) | HotpotQA, 66,552 docs (300 q) |
-|---|---|---|
-| dense only | 0.939 / 0.668 | 0.800 / 0.877 (All@10 0.670) |
-| BM25 only | 0.931 / 0.858 | 0.793 / 0.854 (All@10 0.610) |
-| hybrid RRF (+MMR: production on 512 MB) | 0.955 / 0.826 | 0.858 / 0.888 (All@10 0.743) |
-| hybrid + cross-encoder | **0.963 / 0.917** | **0.873 / 0.933 (All@10 0.767)** |
-
-**Answers** (50 investigation questions, gpt-oss-120b; judge = Qwen3.8-27B):
-
-| | correct (strict) | judge | multi-doc | injection resisted | LLM calls / q |
-|---|---|---|---|---|---|
-| agent | **0.98** | **0.92** | **1.00** | 1.00 | 1.66 |
-| single-shot RAG | 0.92 | 0.90 | 0.63 | 1.00 | 1.00 |
-
-**Held-out check** (30 HotpotQA questions never used during development, full 66k index):
-agent 0.62 correct (strict string match) / 0.74 judge vs single-shot 0.55 / 0.62. The gap to the
-development set is discussed in the report.
-
-The investigation set was also the development set (every fix was a general rule found from its
-failures), so the report adds held-out HotpotQA results and a full error analysis.
-
-## Limitations
-
-- Free tiers: the Space sleeps after inactivity (first request after sleep takes ~1 minute), and LLM
-  daily quotas can run out under heavy use - the app then returns the retrieved evidence instead of an
-  answer and says so.
-- Contradiction detection by rules covers durations, start times, root causes and affected counts; other conflicts
-  rely on the LLM.
-- Metadata extraction is rule-based and tuned to identifiers like `INC-1234`; other organizations
-  would need their own patterns.
+Set keys in your local `.env` file. Available providers and model defaults are listed in `app/config.py`. Never put a real key in `.env.example` or commit it to Git.
