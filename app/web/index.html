@@ -1,0 +1,1199 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sourcepoint AI Investigation Engine</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;650;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --space-1: 0.5rem;   /* 8px  – label to field, nav gap */
+    --space-2: 0.75rem;  /* 12px – chip gaps */
+    --space-3: 1.5rem;   /* 24px – between control groups */
+    --space-4: 2.5rem;   /* 40px – card padding, section breaks inside card */
+    --space-5: 4rem;     /* 64px – header to card */
+    --space-6: 6rem;     /* 96px – page bottom */
+
+    --bg: #f8fafc;
+    --panel: #ffffff;
+    --text: #0f172a;
+    --muted: #64748b;
+    --border: #e2e8f0;
+    --border-subtle: rgba(15, 23, 42, 0.08);
+    --input-bg: #f8fafc;
+    --input-border: rgba(15, 23, 42, 0.14);
+    --placeholder: #94a3b8;
+    --accent: #2557d6;
+    --accent-btn-text: #ffffff;
+    --accent-bg: #eff4fe;
+    --accent-ring: rgba(37, 87, 214, 0.15);
+    --chip-bg: #f1f5f9;
+    --chip-hover: #e2e8f0;
+    --chip-text: #334155;
+    --ok: #16a34a;
+    --ok-bg: #dcfce7;
+    --warn: #d97706;
+    --warn-bg: #fef3c7;
+    --bad: #dc2626;
+    --bad-bg: #fee2e2;
+    --shadow: 0 10px 30px -4px rgba(15, 23, 42, 0.06), 0 2px 8px -2px rgba(15, 23, 42, 0.04);
+    --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0b0f19;
+      --panel: #1a1f2b;  /* Subtle surface lift */
+      --text: #f1f5f9;
+      --muted: #94a3b8;
+      --border: #262e3d;
+      --border-subtle: rgba(255, 255, 255, 0.07);
+      --input-bg: #121620;
+      --input-border: rgba(255, 255, 255, 0.12); /* Resting border 1px at ~12% white */
+      --placeholder: rgba(255, 255, 255, 0.35);
+      --accent: #7ea0ff;
+      --accent-btn-text: #0b0f19; /* High-contrast crisp text on light accent */
+      --accent-bg: rgba(126, 160, 255, 0.12);
+      --accent-ring: rgba(126, 160, 255, 0.15); /* 4px ring at 15% opacity */
+      --chip-bg: rgba(255, 255, 255, 0.03);
+      --chip-hover: rgba(255, 255, 255, 0.08);
+      --chip-text: rgba(255, 255, 255, 0.70); /* ~70% white */
+      --ok: #4ade80;
+      --ok-bg: rgba(74, 222, 128, 0.12);
+      --warn: #fbbf24;
+      --warn-bg: rgba(251, 191, 36, 0.12);
+      --bad: #f87171;
+      --bad-bg: rgba(248, 113, 113, 0.12);
+      --shadow: 0 16px 40px -12px rgba(0, 0, 0, 0.45);
+    }
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font: 15px/1.55 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Shared Container: exact 56rem width, centered, aligning header and cards */
+  .container {
+    max-width: 56rem;
+    margin-inline: auto;
+    padding-inline: 1.5rem;
+    width: 100%;
+  }
+
+  /* Header */
+  header.site-header {
+    padding-block: 2rem; /* 24px -> 32px (2rem) */
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    border-bottom: 1px solid var(--border-subtle);
+  }
+  .brand-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1); /* Title to meta gap: 0.5rem */
+  }
+  .brand-title-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+  }
+  .brand-title {
+    font-size: 1.4rem;
+    margin: 0;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: var(--text);
+  }
+  .brand-tagline {
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--muted);
+  }
+
+  /* Status Pill & Popover */
+  .status-wrapper {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+  }
+  .status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 500;
+    background: var(--chip-bg);
+    border: 1px solid var(--border-subtle);
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    font-family: inherit;
+  }
+  .status-pill:hover {
+    color: var(--text);
+    background: var(--chip-hover);
+    border-color: var(--input-border);
+  }
+  .status-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #eab308;
+    display: inline-block;
+  }
+  .status-dot.ok {
+    background: var(--ok);
+    box-shadow: 0 0 6px var(--ok);
+  }
+  .status-dot.bad {
+    background: var(--bad);
+    box-shadow: 0 0 6px var(--bad);
+  }
+  .popover {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    width: 320px;
+    background: var(--panel);
+    border: 1px solid var(--border-subtle);
+    border-radius: 12px;
+    padding: 1.25rem;
+    box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.45);
+    z-index: 100;
+  }
+  .popover-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+  .close-btn {
+    background: none;
+    border: none;
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 14px;
+    padding: 0 4px;
+  }
+  .close-btn:hover {
+    color: var(--text);
+  }
+  .status-item {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    font-size: 12.5px;
+    margin-bottom: 0.625rem;
+  }
+  .status-item-label {
+    color: var(--muted);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 600;
+  }
+  .status-item-value {
+    color: var(--text);
+    word-break: break-word;
+  }
+
+  /* Navigation Tabs */
+  nav.nav-tabs {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1); /* 0.5rem gap between items */
+    background: var(--chip-bg);
+    padding: 4px;
+    border-radius: 10px;
+    border: 1px solid var(--border-subtle);
+  }
+  nav.nav-tabs button {
+    background: transparent;
+    border: 1px solid transparent;
+    padding: 0.5rem 1rem; /* 0.5rem 1rem inside each so hit areas breathe */
+    border-radius: 7px;
+    cursor: pointer;
+    color: var(--muted);
+    font: inherit;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.15s ease;
+  }
+  nav.nav-tabs button:hover {
+    color: var(--text);
+  }
+  nav.nav-tabs button.active {
+    background: var(--panel);
+    color: var(--text);
+    border-color: var(--border-subtle);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+    font-weight: 600;
+  }
+
+  /* Main & Spacing */
+  main {
+    margin-top: var(--space-5); /* 4rem (64px) gap between header and card */
+    padding-bottom: var(--space-6); /* 6rem (96px) at page bottom */
+  }
+
+  /* Cards & Panels */
+  .card, .panel {
+    background: var(--panel);
+    border-radius: 1rem; /* 16px */
+    padding: var(--space-4); /* 2.5rem (40px) */
+    box-shadow: var(--shadow);
+    border: 1px solid var(--border-subtle);
+  }
+  @media (max-width: 640px) {
+    .card, .panel {
+      padding: 2rem; /* 2rem on mobile */
+    }
+  }
+
+  /* Textarea */
+  textarea#question {
+    width: 100%;
+    min-height: 8rem; /* 128px */
+    padding: 1.25rem 1.5rem;
+    font-size: 1.125rem; /* 18px */
+    line-height: 1.6;
+    border: 1px solid var(--input-border); /* 1px at ~12% white in dark */
+    border-radius: 12px;
+    background: var(--input-bg);
+    color: var(--text);
+    resize: vertical;
+    font-family: inherit;
+    box-sizing: border-box;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+  textarea#question::placeholder {
+    color: var(--placeholder);
+  }
+  textarea#question:focus {
+    border-color: var(--accent);
+    outline: none;
+    box-shadow: 0 0 0 4px var(--accent-ring);
+  }
+
+  /* Generic inputs and selects */
+  input[type=text], select, input[type=file] {
+    font: inherit;
+    padding: 0.6rem 0.85rem;
+    border: 1px solid var(--input-border);
+    border-radius: 8px;
+    background: var(--input-bg);
+    color: var(--text);
+    font-size: 14px;
+    box-sizing: border-box;
+  }
+  input[type=text]:focus, select:focus {
+    border-color: var(--accent);
+    outline: none;
+    box-shadow: 0 0 0 3px var(--accent-ring);
+  }
+
+  /* Controls Row */
+  .controls {
+    margin-top: var(--space-3); /* 1.5rem (24px) */
+    display: flex;
+    align-items: flex-end;
+    gap: var(--space-3); /* 1.5rem between control groups */
+    flex-wrap: wrap;
+  }
+  .control-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1); /* Stack labels above selects with 0.5rem */
+    flex: 0 1 auto;
+    min-width: 180px;
+  }
+  .control-label {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+  }
+  .control-select {
+    height: 3rem;
+    padding: 0 1rem;
+    border-radius: 8px;
+    border: 1px solid var(--input-border);
+    background: var(--input-bg);
+    color: var(--text);
+    font: inherit;
+    font-size: 14px;
+    cursor: pointer;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+  .control-action {
+    margin-left: auto; /* Push primary button to far right */
+    display: flex;
+    align-items: flex-end;
+  }
+
+  /* Primary Action Button */
+  button.primary {
+    height: 3rem; /* 48px */
+    padding-inline: 2rem; /* 32px */
+    background: var(--accent);
+    color: var(--accent-btn-text);
+    border: none;
+    border-radius: 8px;
+    font: inherit;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.1s ease, filter 0.15s ease, opacity 0.15s ease;
+    white-space: nowrap;
+  }
+  button.primary:hover:not(:disabled) {
+    filter: brightness(1.08);
+  }
+  button.primary:active:not(:disabled) {
+    transform: scale(0.98);
+  }
+  button.primary:disabled {
+    opacity: 0.55;
+    cursor: wait;
+  }
+  button.small {
+    font-size: 13px;
+    padding: 4px 10px;
+    border: 1px solid var(--border-subtle);
+    background: var(--panel);
+    color: var(--text);
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  button.small:hover {
+    background: var(--chip-hover);
+  }
+
+  /* Suggestion Chips */
+  .chips-section {
+    margin-top: var(--space-4); /* 2.5rem (40px) */
+    padding-top: var(--space-4);
+    border-top: 1px solid var(--border-subtle);
+  }
+  .chips-label {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    font-weight: 600;
+    margin-bottom: var(--space-2); /* 0.75rem below label */
+  }
+  .chips-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr); /* 2-column balanced grid */
+    gap: var(--space-2); /* 0.75rem on both axes */
+  }
+  @media (max-width: 640px) {
+    .chips-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+  .chip {
+    padding: 0.625rem 1rem; /* 10px 16px */
+    font-size: 14px;
+    line-height: 1.45;
+    color: var(--chip-text); /* ~70% white */
+    background: var(--chip-bg);
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+    cursor: pointer;
+    text-align: left;
+    transition: all 0.15s ease;
+    font-family: inherit;
+    display: flex;
+    align-items: center;
+  }
+  .chip:hover {
+    color: var(--text); /* Brighten on hover */
+    background: var(--chip-hover);
+    border-color: var(--accent);
+    transform: translateY(-1px);
+  }
+
+  /* Investigation Results Layout */
+  .layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+    gap: var(--space-3);
+    margin-top: var(--space-4);
+  }
+  @media (max-width: 900px) {
+    .layout {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  /* Badges & Result Cards */
+  .badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .b-answered, .b-supported { background: var(--ok-bg); color: var(--ok); }
+  .b-partial { background: var(--warn-bg); color: var(--warn); }
+  .b-insufficient_evidence, .b-unsupported, .b-llm_unavailable { background: var(--bad-bg); color: var(--bad); }
+
+  .answer {
+    white-space: pre-wrap;
+    font-size: 15.5px;
+    line-height: 1.6;
+    color: var(--text);
+  }
+  a.cite {
+    color: var(--accent);
+    text-decoration: none;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 0 2px;
+  }
+  a.cite:hover { text-decoration: underline; }
+  .trace {
+    margin: 0;
+    padding-left: 20px;
+  }
+  .trace li {
+    margin: 5px 0;
+    font-size: 13.5px;
+    line-height: 1.5;
+  }
+  .trace code, .mono {
+    font-family: var(--mono);
+    font-size: 12.5px;
+  }
+  .muted { color: var(--muted); }
+  .callout {
+    border-left: 3px solid var(--warn);
+    background: var(--warn-bg);
+    padding: 10px 14px;
+    margin: 10px 0;
+    border-radius: 6px;
+    font-size: 14px;
+  }
+  .callout.bad {
+    border-left-color: var(--bad);
+    background: var(--bad-bg);
+  }
+  .source {
+    border: 1px solid var(--border-subtle);
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-bottom: 12px;
+    background: var(--input-bg);
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+  .source.hl {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-ring);
+  }
+  .source h4 {
+    margin: 0 0 6px;
+    font-size: 14px;
+    font-weight: 600;
+  }
+  .source .text {
+    white-space: pre-wrap;
+    font-size: 13.5px;
+    line-height: 1.5;
+    max-height: 260px;
+    overflow: auto;
+    color: var(--text);
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13.5px;
+  }
+  th, td {
+    text-align: left;
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border-subtle);
+    vertical-align: top;
+  }
+  th {
+    color: var(--muted);
+    font-weight: 600;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .hidden { display: none !important; }
+  .err { color: var(--bad); }
+  .kv {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    font-size: 13px;
+    color: var(--muted);
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border-subtle);
+  }
+  .row {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .row > * { flex: 0 0 auto; }
+  .grow { flex: 1 1 260px !important; }
+
+  /* Footer */
+  footer.site-footer {
+    padding-top: var(--space-4);
+    padding-bottom: var(--space-6);
+    border-top: 1px solid var(--border-subtle);
+    color: var(--muted);
+    font-size: 13px;
+    text-align: center;
+  }
+  .footer-content {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  .footer-dot { opacity: 0.4; }
+  .footer-status { opacity: 0.85; }
+
+  /* Desktop workspace refresh: clear hierarchy, readable controls, and calm surfaces. */
+  :root {
+    color-scheme: light;
+    --bg: #f4f6f8;
+    --panel: #ffffff;
+    --text: #1c2733;
+    --muted: #65717d;
+    --border: #d9e0e6;
+    --border-subtle: #e4e9ee;
+    --input-bg: #fbfcfd;
+    --input-border: #c7d0d8;
+    --placeholder: #7c8995;
+    --accent: #245e82;
+    --accent-btn-text: #ffffff;
+    --accent-bg: #edf4f8;
+    --accent-ring: rgba(36, 94, 130, .18);
+    --chip-bg: #f5f8fa;
+    --chip-hover: #edf3f6;
+    --chip-text: #354552;
+    --shadow: 0 8px 24px rgba(26, 47, 68, .06);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { color-scheme: light; }
+  }
+  body {
+    min-width: 760px;
+    font: 16px/1.55 "Segoe UI", Arial, sans-serif;
+    background: radial-gradient(ellipse at 50% -240px, #e3eff0 0, var(--bg) 690px);
+  }
+  .container { max-width: 1440px; padding-inline: 48px; }
+  header.site-header {
+    padding-block: 26px;
+    margin-inline: -48px;
+    padding-inline: 48px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(255,255,255,.82);
+  }
+  .brand-group { gap: 4px; }
+  .brand-title { font-size: 25px; letter-spacing: -.035em; }
+  .brand-tagline { font-size: 14px; }
+  .status-pill { padding: 5px 11px; font-size: 13px; }
+  nav.nav-tabs {
+    padding: 4px;
+    gap: 2px;
+    border-radius: 11px;
+    background: #f1f5f7;
+    border-color: var(--border);
+  }
+  nav.nav-tabs button { padding: 9px 17px; font-size: 15px; }
+  nav.nav-tabs button.active { color: var(--accent); box-shadow: 0 1px 4px rgba(26,47,68,.09); }
+  main { margin-top: 36px; padding-bottom: 64px; }
+  .card, .panel {
+    padding: 30px;
+    border-radius: 16px;
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow);
+  }
+  #tab-ask > .card { max-width: 1180px; margin-inline: auto; }
+  textarea#question {
+    min-height: 132px;
+    padding: 18px 20px;
+    font-size: 17px;
+    line-height: 1.55;
+    font-family: inherit;
+    background: #fbfcfd;
+    border-color: #cbd6e1;
+    border-radius: 12px;
+  }
+  input[type=text], select, input[type=file] {
+    min-height: 44px;
+    padding: 9px 38px 9px 13px;
+    border-radius: 9px;
+    border-color: var(--input-border);
+    background-color: var(--input-bg);
+    font-size: 15px;
+  }
+  select {
+    appearance: none;
+    cursor: pointer;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%235f7485' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 13px center;
+  }
+  .controls { align-items: end; gap: 16px; margin-top: 20px; }
+  .control-group { min-width: 220px; gap: 6px; }
+  .control-label { font-size: 12px; letter-spacing: .045em; }
+  .control-select { height: 46px; min-width: 220px; padding: 0 38px 0 13px; border-radius: 9px; font-size: 15px; }
+  #mode { min-width: 210px; }
+  .control-action { margin-left: 0; }
+  button.primary {
+    height: 46px;
+    padding-inline: 22px;
+    border-radius: 9px;
+    background: var(--accent);
+    font-size: 15px;
+    box-shadow: 0 2px 5px rgba(23,107,104,.16);
+  }
+  button.primary:hover:not(:disabled) { filter: brightness(1.06); box-shadow: 0 4px 10px rgba(23,107,104,.2); }
+  .chips-section { margin-top: 24px; padding-top: 20px; border-top-color: var(--border); }
+  .chips-label { margin-bottom: 10px; font-size: 12px; letter-spacing: .06em; }
+  .chips-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+  .chip {
+    min-height: 48px;
+    padding: 10px 14px;
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    background: #f8fafb;
+    font-size: 14px;
+  }
+  .chip:hover { background: var(--accent-bg); border-color: #9bc8c4; transform: translateY(-1px); }
+  .layout { max-width: 1320px; margin: 28px auto 0; gap: 20px; }
+  .layout .panel { padding: 24px; }
+  .badge { padding: 4px 10px; font-size: 12px; border-radius: 7px; }
+  .answer { font-size: 16px; line-height: 1.7; }
+  .source { background: #fbfcfd; border-color: var(--border); }
+  .source .text { font-size: 14px; line-height: 1.65; }
+  table { font-size: 14px; }
+  th, td { padding: 10px 12px; }
+  footer.site-footer { padding-top: 22px; padding-bottom: 28px; border-top-color: var(--border); }
+  .popover { border-color: var(--border); box-shadow: 0 16px 38px rgba(26,47,68,.16); }
+  :focus-visible { outline: 3px solid var(--accent-ring); outline-offset: 2px; }
+  /* Keep one restrained type scale across the complete desktop interface. */
+  body { font-family: "Inter", "Segoe UI", Arial, sans-serif; font-size: 16px; line-height: 1.55; letter-spacing: -.01em; }
+  .brand-title { display: flex; align-items: center; gap: 11px; font-family: "Inter", "Segoe UI", Arial, sans-serif; font-size: 25px; line-height: 1.25; font-weight: 650; letter-spacing: -.035em; }
+  .brand-name { display: inline-block; }
+  .sourcepoint-mark {
+    position: relative; display: inline-grid; place-items: center; flex: 0 0 30px;
+    width: 30px; height: 30px; border: 1.5px solid #b8cbd8; border-radius: 50%;
+    background: linear-gradient(145deg, #f4f8fa, #e8f0f5);
+    animation: sourcepoint-refresh 1.25s cubic-bezier(.2,.7,.25,1) both;
+  }
+  .sourcepoint-mark::before {
+    content: ""; position: absolute; inset: 4px; border: 1.5px solid transparent;
+    border-top-color: var(--accent); border-right-color: var(--accent); border-radius: 50%;
+    transform: rotate(-35deg); animation: sourcepoint-orbit .85s cubic-bezier(.2,.7,.25,1) both;
+  }
+  .sourcepoint-mark span {
+    width: 7px; height: 7px; border-radius: 50%; background: var(--accent);
+    box-shadow: 0 0 0 3px rgba(36,94,130,.12); animation: sourcepoint-pulse .75s ease-out both;
+  }
+  @keyframes sourcepoint-refresh { from { opacity: .35; transform: rotate(-80deg) scale(.82); } to { opacity: 1; transform: rotate(0) scale(1); } }
+  @keyframes sourcepoint-orbit { from { transform: rotate(-220deg); } to { transform: rotate(-35deg); } }
+  @keyframes sourcepoint-pulse { 0% { transform: scale(.55); } 55% { transform: scale(1.2); } 100% { transform: scale(1); } }
+  @media (prefers-reduced-motion: reduce) { .sourcepoint-mark, .sourcepoint-mark::before, .sourcepoint-mark span { animation: none; } }
+  .brand-title-secondary { font-size: .76em; font-weight: 500; letter-spacing: -.025em; color: var(--muted); }
+  .brand-tagline { font-size: 14px; line-height: 1.5; }
+  nav.nav-tabs button, button, input, select, textarea { font-family: inherit; }
+  .control-label, .chips-label, th, .status-item-label { font-size: 13px; font-weight: 600; }
+  .control-select, input[type=text], select, input[type=file], .chip, nav.nav-tabs button,
+  button.primary, button.small, .answer, table { font-size: 15px; }
+  .status-pill, .status-item, .callout, .source .text, .trace li, .muted,
+  .status-item-value, .popover-header { font-size: 14px; }
+  .badge, .mono, .trace code { font-size: 13px; }
+  h1, h2, h3, h4, strong, button, label, th { letter-spacing: -.015em; }
+  input, select, textarea { letter-spacing: 0; }
+  .panel > strong { font-size: 18px !important; line-height: 1.35; }
+  .popover { width: 360px; }
+  .row { row-gap: 10px; }
+  @media (max-width: 900px) {
+    body { min-width: 0; }
+    .container { padding-inline: 24px; }
+    header.site-header { margin-inline: -24px; padding-inline: 24px; }
+    .control-group { min-width: 200px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <!-- ============================ HEADER ============================ -->
+  <header class="site-header">
+    <div class="brand-group">
+      <div class="brand-title-row">
+        <h1 class="brand-title"><span class="sourcepoint-mark" aria-hidden="true"><span></span></span><span class="brand-name">Sourcepoint <span class="brand-title-secondary">AI Investigation Engine</span></span></h1>
+        <div class="status-wrapper">
+          <button type="button" class="status-pill" id="statusBtn" aria-haspopup="dialog" aria-expanded="false" title="Click to view system status">
+            <span class="status-dot" id="statusDot"></span>
+            <span id="healthBrief">Connecting…</span>
+          </button>
+          <div class="popover hidden" id="statusPopover" role="dialog" aria-label="System status">
+            <div class="popover-header">
+              <span>System Status</span>
+              <button type="button" class="close-btn" id="closeStatusBtn" aria-label="Close status popover">✕</button>
+            </div>
+            <div id="healthDetails">
+              <div class="muted">Connecting to backend services…</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="brand-tagline">Autonomous multi-source research & verified evidence</div>
+    </div>
+    <nav class="nav-tabs" aria-label="Primary Navigation">
+      <button type="button" data-tab="ask" class="active">Investigate</button>
+      <button type="button" data-tab="docs">Documents</button>
+      <button type="button" data-tab="search">Search</button>
+    </nav>
+  </header>
+
+  <!-- ============================ MAIN CONTENT ============================ -->
+  <main>
+    <!-- ============================ INVESTIGATE TAB ============================ -->
+    <section id="tab-ask">
+      <div class="card">
+        <textarea id="question" placeholder="Ask a question that may need several documents…"></textarea>
+        
+        <div class="controls">
+          <div class="control-group">
+            <label for="corpus" class="control-label">Corpus</label>
+            <select id="corpus" class="control-select">
+              <option value="hotpotqa" selected>HotpotQA Wikipedia</option>
+              <option value="uploads">My uploads</option>
+              <option value="">All corpora</option>
+            </select>
+          </div>
+          <div class="control-group">
+            <label for="mode" class="control-label">Mode</label>
+            <select id="mode" class="control-select">
+              <option value="agent">Agent (multi-step)</option>
+              <option value="single_shot">Single-shot RAG</option>
+            </select>
+          </div>
+          <div class="control-action">
+            <button class="primary" id="askBtn">Investigate</button>
+          </div>
+        </div>
+
+        <div class="chips-section">
+          <div class="chips-label">Try an example</div>
+          <div class="chips-grid" id="examples"></div>
+        </div>
+      </div>
+
+      <div class="layout">
+        <div>
+          <div class="panel" id="tracePanel" style="display:none">
+            <strong style="font-size:15px; display:block; margin-bottom:12px;">Investigation trace</strong>
+            <ol class="trace" id="trace"></ol>
+          </div>
+          <div class="panel" id="resultPanel" style="display:none; margin-top: var(--space-3);"></div>
+        </div>
+        <div>
+          <div class="panel" id="sourcesPanel" style="display:none">
+            <div style="margin-bottom:12px;">
+              <strong style="font-size:15px;">Sources</strong> <span class="muted" style="font-size:13px;">(click a citation to jump)</span>
+            </div>
+            <div id="sources"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================ DOCUMENTS TAB ============================ -->
+    <section id="tab-docs" class="hidden">
+      <div class="panel">
+        <strong style="font-size:16px;">Add documents</strong>
+        <p class="muted" style="margin:8px 0 16px; font-size:13.5px;">Supported: PDF, DOCX, Markdown, HTML, TXT, CSV, JSON, JSONL, XML. Re-uploading a file with the same name creates a new version; identical content is detected as a duplicate.</p>
+        <div class="row">
+          <input type="file" id="files" multiple>
+          <label class="muted" style="font-size:13px;">into <select id="uploadCorpus" style="width:auto"><option value="uploads">My uploads</option></select></label>
+          <button class="primary" id="uploadBtn" style="height:2.6rem; padding-inline:1.5rem;">Upload</button>
+        </div>
+        <div id="uploadResult" class="muted" style="margin-top:12px"></div>
+      </div>
+
+      <div class="panel" style="margin-top:var(--space-3)">
+        <div class="row" style="margin-bottom:12px">
+          <strong class="grow" style="font-size:16px;">Documents</strong>
+          <select id="docCorpus" style="width:auto"><option value="hotpotqa" selected>HotpotQA</option><option value="uploads">My uploads</option></select>
+          <button class="small" id="refreshDocs">Refresh</button>
+        </div>
+        <div id="docStats" class="muted" style="margin:8px 0 12px; font-size:13px;"></div>
+        <table>
+          <thead>
+            <tr><th>Title</th><th>Type</th><th>Format</th><th>Ver.</th><th>Chunks</th><th>Notes</th><th></th></tr>
+          </thead>
+          <tbody id="docRows"></tbody>
+        </table>
+        <div class="row" style="margin-top:12px"><button class="small" id="moreDocs" style="display:none">Load more</button></div>
+        <input type="file" id="replaceFile" class="hidden">
+      </div>
+      <div class="panel hidden" id="docDetail" style="margin-top:var(--space-3)"></div>
+    </section>
+
+    <!-- ============================ SEARCH TAB ============================ -->
+    <section id="tab-search" class="hidden">
+      <div class="panel">
+        <div class="row">
+          <input type="text" id="sq" class="grow" placeholder="Search query (shows every ranking stage)">
+          <select id="smode" style="width:auto"><option value="hybrid">Hybrid</option><option value="dense">Dense only</option><option value="sparse">BM25 only</option></select>
+          <label class="muted" style="font-size:13px; display:inline-flex; align-items:center; gap:4px;"><input type="checkbox" id="srerank" checked> rerank</label>
+          <label class="muted" style="font-size:13px; display:inline-flex; align-items:center; gap:4px;"><input type="checkbox" id="smmr" checked> MMR</label>
+          <select id="scorpus" style="width:auto"><option value="hotpotqa" selected>HotpotQA</option><option value="uploads">My uploads</option></select>
+          <button class="primary" id="searchBtn" style="height:2.6rem; padding-inline:1.5rem;">Search</button>
+        </div>
+        <div id="searchMeta" class="muted" style="margin-top:10px; font-size:13px;"></div>
+      </div>
+      <div id="searchResults" style="margin-top:var(--space-3)"></div>
+    </section>
+  </main>
+
+  <!-- ============================ FOOTER ============================ -->
+  <footer class="site-footer">
+    <div class="footer-content">
+      <span>Sourcepoint AI Investigation Engine · Multi-hop retrieval with grounded fact-checking</span>
+      <span class="footer-dot">·</span>
+      <span id="footerStatus" class="footer-status">Connecting…</span>
+    </div>
+  </footer>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+// HotpotQA multi-hop checks and upload prompts.
+const EXAMPLES = {
+  hotpotqa: [
+    "Where are Neoregelia and Aloysia known to grow?",
+    "Who was born first, Brooklyn Decker or Andy Roddick?",
+    "What is the name of the pop artist on Pledis Entertainment with 13 members?",
+    "Were Scott Derrickson and Ed Wood of the same nationality?",
+  ],
+  uploads: [
+    "Summarize the key findings in my uploads",
+    "What action items are listed across the documents?",
+    "Are there any contradictions in the uploaded policies?",
+    "List the primary entities and dates mentioned",
+  ],
+};
+
+// ---------- tabs
+document.querySelectorAll("nav.nav-tabs button").forEach((b) => b.onclick = () => {
+  document.querySelectorAll("nav.nav-tabs button").forEach((x) => x.classList.toggle("active", x === b));
+  ["ask", "docs", "search"].forEach((t) => $("tab-" + t).classList.toggle("hidden", t !== b.dataset.tab));
+  if (b.dataset.tab === "docs") loadDocs(true);
+});
+
+async function api(path, opts = {}) {
+  const res = await fetch(path, opts);
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(body.detail || `HTTP ${res.status}`);
+  return body;
+}
+
+// ---------- health & popover
+const statusBtn = $("statusBtn");
+const statusPopover = $("statusPopover");
+const closeStatusBtn = $("closeStatusBtn");
+
+if (statusBtn && statusPopover) {
+  statusBtn.onclick = (e) => {
+    e.stopPropagation();
+    const isHidden = statusPopover.classList.toggle("hidden");
+    statusBtn.setAttribute("aria-expanded", !isHidden);
+  };
+  if (closeStatusBtn) {
+    closeStatusBtn.onclick = (e) => {
+      e.stopPropagation();
+      statusPopover.classList.add("hidden");
+      statusBtn.setAttribute("aria-expanded", "false");
+    };
+  }
+  document.addEventListener("click", (e) => {
+    if (!statusPopover.classList.contains("hidden") && !statusPopover.contains(e.target) && e.target !== statusBtn) {
+      statusPopover.classList.add("hidden");
+      statusBtn.setAttribute("aria-expanded", "false");
+    }
+  });
+}
+
+async function loadHealth() {
+  try {
+    const h = await api("/api/health");
+    const llm = (h.llm_providers || []).map((p) => `${p.provider} (${p.model})`).join(", ") || "none configured";
+    const ok = h.status === "ok";
+    
+    const dot = $("statusDot");
+    if (dot) dot.className = "status-dot " + (ok ? "ok" : "bad");
+
+    const brief = $("healthBrief");
+    if (brief) brief.textContent = ok ? "Operational" : "Degraded";
+
+    const details = $("healthDetails");
+    if (details) {
+      details.innerHTML = `
+        <div class="status-item">
+          <span class="status-item-label">Status</span>
+          <span class="status-item-value"><span class="badge ${ok ? 'b-answered' : 'b-insufficient_evidence'}">${ok ? 'Operational' : 'Degraded'}</span></span>
+        </div>
+        <div class="status-item">
+          <span class="status-item-label">Vector DB</span>
+          <span class="status-item-value">${esc(h.vector_db)} <span class="muted">(${esc(h.vector_db_mode)})</span></span>
+        </div>
+        <div class="status-item">
+          <span class="status-item-label">LLMs</span>
+          <span class="status-item-value">${esc(llm)}</span>
+        </div>
+        <div class="status-item">
+          <span class="status-item-label">Chunking</span>
+          <span class="status-item-value">${esc(h.chunk_strategy)}</span>
+        </div>
+      `;
+    }
+
+    const footer = $("footerStatus");
+    if (footer) {
+      footer.textContent = `Vector DB: ${h.vector_db} (${h.vector_db_mode}) · LLMs: ${llm} · chunking: ${h.chunk_strategy}`;
+    }
+  } catch (e) {
+    const dot = $("statusDot");
+    if (dot) dot.className = "status-dot bad";
+    const brief = $("healthBrief");
+    if (brief) brief.textContent = "Offline";
+    const details = $("healthDetails");
+    if (details) details.innerHTML = `<div class="err">Backend unreachable: ${esc(e.message)}</div>`;
+    const footer = $("footerStatus");
+    if (footer) footer.textContent = "Backend unreachable: " + e.message;
+  }
+}
+
+// ---------- examples
+function renderExamples() {
+  const rawList = EXAMPLES[$("corpus").value] || EXAMPLES[""] || [];
+  const list = rawList.slice(0, 4); // Always exactly 4 chips for clean 2x2 grid
+  $("examples").innerHTML = list.map((q) => `<button type="button" class="chip">${esc(q)}</button>`).join("");
+  $("examples").querySelectorAll(".chip").forEach((c) => c.onclick = () => {
+    $("question").value = c.textContent;
+    $("question").focus();
+  });
+}
+$("corpus").onchange = renderExamples;
+
+// ---------- investigate (streaming)
+function traceLine(ev) {
+  if (ev.type === "tool_call") {
+    const args = Object.entries(ev.args || {}).filter(([, v]) => v).map(([k, v]) => `${k}=${JSON.stringify(v)}`).join(" ");
+    return `<li><b>${esc(ev.tool)}</b> <code>${esc(args)}</code></li>`;
+  }
+  if (ev.type === "tool_result") {
+    const ids = (ev.evidence || []).map((e) => e.id).join(", ");
+    return `<li class="muted">→ ${ev.evidence?.length || 0} passages ${ids ? "(" + esc(ids) + ")" : ""} ${esc(ev.message || "")}</li>`;
+  }
+  if (ev.type === "thought") return `<li class="muted"><i>${esc(ev.text)}</i></li>`;
+  return "";
+}
+
+function linkCitations(text) {
+  return esc(text)
+    .replace(/\*\*(.+?)\*\*/g, "<b>$1</b>")
+    .replace(/(^|[\s(])\*([^*\n]+)\*(?=[\s).,;:]|$)/g, "$1<i>$2</i>")
+    .replace(/^\s*[*-]\s+/gm, "• ")
+    .replace(/\[(S\d+)\]/g, (m, id) => `<a class="cite" data-sid="${id}">[${id}]</a>`);
+}
+
+function renderResult(r) {
+  const status = r.status || "unknown";
+  const label = { answered: "Answered", partial: "Partial answer", insufficient_evidence: "Insufficient evidence", llm_unavailable: "LLM unavailable" }[status] || status;
+  let html = `<div class="row"><span class="badge b-${esc(status)}">${esc(label)}</span>${r.cached ? '<span class="muted" style="font-size:12px">cached</span>' : ""}</div>`;
+  html += `<div class="answer" style="margin-top:12px">${linkCitations(r.answer || "(no answer)")}</div>`;
+  if (r.missing_information) html += `<div class="callout"><b>Missing information:</b> ${esc(r.missing_information)}</div>`;
+  for (const c of r.contradictions || []) {
+    html += `<div class="callout bad"><b>Contradiction:</b> ${linkCitations(c.description)} ${(c.citations || []).map((s) => `<a class="cite" data-sid="${esc(s)}">[${esc(s)}]</a>`).join(" ")}</div>`;
+  }
+  for (const w of r.warnings || []) html += `<div class="callout">${esc(w)}</div>`;
+  if ((r.claims || []).length) {
+    html += `<details style="margin-top:14px"><summary style="cursor:pointer; font-weight:600;"><b>Claim verification</b> (${r.claims.length} claims, groundedness ${r.groundedness})</summary><table style="margin-top:8px"><tr><th>Claim</th><th>Sources</th><th>Support</th></tr>`;
+    for (const c of r.claims) {
+      const missing = c.missing_tokens?.length ? `<div class="muted" style="font-size:12px; margin-top:2px;">not found in sources: ${esc(c.missing_tokens.join(", "))}</div>` : "";
+      html += `<tr><td>${linkCitations(c.statement)}${missing}</td><td>${(c.citations || []).map((s) => `<a class="cite" data-sid="${esc(s)}">${esc(s)}</a>`).join(" ")}</td><td><span class="badge b-${esc(c.support)}">${esc(c.support)}</span></td></tr>`;
+    }
+    html += `</table></details>`;
+  }
+  const conf = r.retrieval_confidence == null ? "n/a" : r.retrieval_confidence.toFixed(2);
+  html += `<div class="kv"><span>mode: ${esc(r.mode)}</span><span>LLM calls: ${r.llm_calls}</span><span>tokens: ${r.prompt_tokens} in / ${r.completion_tokens} out</span><span>latency: ${(r.latency_ms / 1000).toFixed(1)} s</span><span>retrieval confidence: ${conf}</span><span>evidence seen: ${(r.evidence || []).length}</span></div>`;
+  $("resultPanel").innerHTML = html;
+  $("resultPanel").style.display = "";
+
+  const cited = new Set(r.cited_ids || []);
+  const all = [...(r.sources || []), ...(r.evidence || []).filter((e) => !cited.has(e.id))];
+  $("sources").innerHTML = all.map((s) => `
+    <div class="source" id="src-${esc(s.id)}">
+      <h4>[${esc(s.id)}] ${esc(s.title)} ${cited.has(s.id) ? '<span class="badge b-answered">cited</span>' : ""} ${s.suspicious ? '<span class="badge b-unsupported">injection warning</span>' : ""}</h4>
+      <div class="muted" style="font-size:12px; margin-bottom:6px;">${esc(s.doc_type || "")} · ${esc(s.date || "no date")} · ${esc(s.section || "")} · <span class="mono">${esc(s.doc_id)}</span></div>
+      <div class="text">${esc(s.text)}</div>
+    </div>`).join("") || '<div class="muted">No sources.</div>';
+  $("sourcesPanel").style.display = "";
+  document.querySelectorAll("a.cite").forEach((a) => a.onclick = () => {
+    const el = $("src-" + a.dataset.sid);
+    if (!el) return;
+    document.querySelectorAll(".source.hl").forEach((x) => x.classList.remove("hl"));
+    el.classList.add("hl");
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+  });
+}
+
+$("askBtn").onclick = async () => {
+  const question = $("question").value.trim();
+  if (question.length < 3) { $("question").focus(); return; }
+  $("askBtn").disabled = true; $("askBtn").textContent = "Investigating…";
+  $("trace").innerHTML = ""; $("tracePanel").style.display = "";
+  $("resultPanel").style.display = "none"; $("sourcesPanel").style.display = "none";
+  try {
+    const res = await fetch("/api/ask/stream", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ question, corpus: $("corpus").value || null, mode: $("mode").value }) });
+    if (!res.ok) { const b = await res.json().catch(() => ({})); throw new Error(b.detail || `HTTP ${res.status}`); }
+    const reader = res.body.getReader(); const dec = new TextDecoder(); let buf = "";
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, { stream: true });
+      let idx;
+      while ((idx = buf.indexOf("\n\n")) >= 0) {
+        const line = buf.slice(0, idx).replace(/^data: /, ""); buf = buf.slice(idx + 2);
+        if (!line.trim()) continue;
+        const ev = JSON.parse(line);
+        if (ev.type === "final") renderResult(ev.result);
+        else if (ev.type === "error") throw new Error(ev.message);
+        else $("trace").insertAdjacentHTML("beforeend", traceLine(ev));
+      }
+    }
+  } catch (e) {
+    $("resultPanel").innerHTML = `<div class="err">Error: ${esc(e.message)}</div>`; $("resultPanel").style.display = "";
+  } finally { $("askBtn").disabled = false; $("askBtn").textContent = "Investigate"; }
+};
+
+// ---------- documents
+let docOffset = null;
+async function loadDocs(reset) {
+  const corpus = $("docCorpus").value;
+  if (reset) { docOffset = null; $("docRows").innerHTML = ""; }
+  try {
+    const stats = await api("/api/stats");
+    const s = stats.corpora[corpus] || {};
+    $("docStats").textContent = `${s.documents ?? "?"} documents, ${s.chunks ?? "?"} chunks in '${corpus}'`;
+    const q = new URLSearchParams({ corpus, limit: 50 }); if (docOffset) q.set("offset", docOffset);
+    const data = await api("/api/documents?" + q);
+    docOffset = data.next_offset;
+    $("moreDocs").style.display = docOffset ? "" : "none";
+    $("docRows").insertAdjacentHTML("beforeend", data.documents.map((d) => {
+      const notes = [];
+      if ((d.near_duplicates || []).length) notes.push("near-duplicate of " + d.near_duplicates.map((n) => `${n.doc_id} (${n.similarity})`).join(", "));
+      if (d.protected) notes.push("read-only");
+      return `<tr><td><b>${esc(d.title)}</b><div class="muted mono" style="font-size:12px;">${esc(d.doc_id)}</div></td><td>${esc(d.metadata?.doc_type || "")}</td><td>${esc(d.format)}</td><td>${d.version}</td><td>${d.chunk_count}</td><td class="muted">${esc(notes.join("; "))}</td>
+        <td class="row"><button class="small" data-act="view" data-id="${esc(d.doc_id)}">View</button>${d.protected ? "" : `<button class="small" data-act="replace" data-id="${esc(d.doc_id)}">Replace</button><button class="small" data-act="delete" data-id="${esc(d.doc_id)}">Delete</button>`}</td></tr>`;
+    }).join(""));
+  } catch (e) { $("docStats").innerHTML = `<span class="err">${esc(e.message)}</span>`; }
+}
+$("refreshDocs").onclick = () => loadDocs(true);
+$("docCorpus").onchange = () => loadDocs(true);
+$("moreDocs").onclick = () => loadDocs(false);
+
+let replaceTarget = null;
+$("docRows").onclick = async (e) => {
+  const btn = e.target.closest("button"); if (!btn) return;
+  const id = btn.dataset.id;
+  if (btn.dataset.act === "view") {
+    const d = await api("/api/documents/" + encodeURIComponent(id));
+    $("docDetail").innerHTML = `<strong style="font-size:16px;">${esc(d.document.title)}</strong> <span class="muted mono" style="font-size:12px;">${esc(id)} · v${d.document.version} · ${esc(d.document.source)}</span>` +
+      `<div class="muted" style="font-size:13px; margin:4px 0 12px;">entities: ${esc((d.document.entities || []).join(", "))}</div>` +
+      d.chunks.map((c) => `<div class="source"><div class="muted" style="font-size:12px; margin-bottom:4px;">chunk ${c.position} · ${esc(c.section)}</div><div class="text">${esc(c.text)}</div></div>`).join("");
+    $("docDetail").classList.remove("hidden"); $("docDetail").scrollIntoView({ behavior: "smooth" });
+  } else if (btn.dataset.act === "delete") {
+    if (!confirm(`Delete ${id}?`)) return;
+    try { await api("/api/documents/" + encodeURIComponent(id), { method: "DELETE" }); loadDocs(true); }
+    catch (err) { alert(err.message); }
+  } else if (btn.dataset.act === "replace") { replaceTarget = id; $("replaceFile").click(); }
+};
+$("replaceFile").onchange = async () => {
+  const f = $("replaceFile").files[0]; if (!f || !replaceTarget) return;
+  const fd = new FormData(); fd.append("file", f);
+  try { const r = await api("/api/documents/" + encodeURIComponent(replaceTarget), { method: "PUT", body: fd }); alert(`${r.doc_id}: ${r.status} (version ${r.version})`); loadDocs(true); }
+  catch (err) { alert(err.message); }
+  $("replaceFile").value = "";
+};
+
+$("uploadBtn").onclick = async () => {
+  const files = $("files").files; if (!files.length) return;
+  const fd = new FormData(); for (const f of files) fd.append("files", f); fd.append("corpus", $("uploadCorpus").value);
+  $("uploadBtn").disabled = true; $("uploadResult").textContent = "Processing…";
+  try {
+    const r = await api("/api/documents", { method: "POST", body: fd });
+    $("uploadResult").innerHTML = r.results.map((x) => `${esc(x.filename)}: <b>${esc(x.status)}</b>` +
+      (x.error ? ` - ${esc(x.error)}` : "") + (x.duplicate_of ? ` (same content as ${esc(x.duplicate_of)})` : "") +
+      (x.chunks ? `, ${x.chunks} chunks, v${x.version}` : "") +
+      ((x.near_duplicates || []).length ? `, near-duplicate of ${esc(x.near_duplicates.map((n) => n.doc_id).join(", "))}` : "")).join("<br>");
+    $("docCorpus").value = $("uploadCorpus").value; loadDocs(true);
+  } catch (e) { $("uploadResult").innerHTML = `<span class="err">${esc(e.message)}</span>`; }
+  finally { $("uploadBtn").disabled = false; }
+};
+
+// ---------- search
+$("searchBtn").onclick = async () => {
+  const q = $("sq").value.trim(); if (q.length < 2) return;
+  const p = new URLSearchParams({ q, mode: $("smode").value, rerank: $("srerank").checked, mmr: $("smmr").checked, k: 10 });
+  if ($("scorpus").value) p.set("corpus", $("scorpus").value);
+  try {
+    const r = await api("/api/search?" + p);
+    $("searchMeta").textContent = "timings: " + Object.entries(r.timings_ms).map(([k, v]) => `${k} ${v}`).join(" · ");
+    $("searchResults").innerHTML = r.hits.map((h, i) => `<div class="panel source"><h4>${i + 1}. ${esc(h.title)} <span class="muted">${esc(h.section || "")}</span></h4>
+      <div class="muted mono" style="font-size:12px; margin-bottom:6px;">${esc(h.doc_id)} · ${esc(h.doc_type || "")} · ${esc(h.date || "")} · ${esc(Object.entries(h.scores).map(([k, v]) => `${k}=${v}`).join("  "))}</div>
+      <div class="text">${esc(h.text)}</div></div>`).join("") || '<div class="panel muted">No results.</div>';
+  } catch (e) { $("searchMeta").innerHTML = `<span class="err">${esc(e.message)}</span>`; }
+};
+$("sq").addEventListener("keydown", (e) => { if (e.key === "Enter") $("searchBtn").click(); });
+
+loadHealth();
+renderExamples();
+</script>
+</body>
+</html>

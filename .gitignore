@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+
+# Secrets - never commit real keys
+.env
+
+# Data that is downloaded or rebuilt by scripts (reproducible, so not committed)
+data/raw/
+data/qdrant_local/
+data/cache/
+data/processed/hotpotqa_docs.jsonl
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/
+
+# Personal notes (not part of the submission)
+STUDY_GUIDE.md
+data/qdrant_*/
+.claude/
+eval/results/*.log
